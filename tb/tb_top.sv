@@ -75,7 +75,47 @@ module tb_top;
         if (empty !== 1'b1)
             $fatal(1, "FIFO should be empty after the read");
 
-        $display("BASIC TEST PASSED");
+        // The previous test left the FIFO empty.
+        for (int i = 0; i < DEPTH; i++) begin
+            @(negedge clk);
+            wr_en   = 1'b1;
+            wr_data = DATA_WIDTH'(i + 1);
+
+            @(posedge clk);
+            #1;
+            wr_en = 1'b0;
+
+            if (empty !== 1'b0)
+                $fatal(1, "FIFO empty after write %0d", i + 1);
+
+            if (full !== (i == DEPTH - 1))
+                $fatal(1, "Incorrect full flag after write %0d",
+                       i + 1);
+        end
+
+        // Read every value from the full FIFO.
+        for (int i = 0; i < DEPTH; i++) begin
+            @(negedge clk);
+            rd_en = 1'b1;
+
+            @(posedge clk);
+            #1;
+            rd_en = 1'b0;
+
+            if (rd_data !== DATA_WIDTH'(i + 1))
+                $fatal(1, "Read %0d: expected %0h, got %0h",
+                       i + 1, DATA_WIDTH'(i + 1), rd_data);
+
+            if (full !== 1'b0)
+                $fatal(1, "FIFO still full after read %0d",
+                       i + 1);
+
+            if (empty !== (i == DEPTH - 1))
+                $fatal(1, "Incorrect empty flag after read %0d",
+                       i + 1);
+        end
+
+        $display("BASIC AND FILL/DRAIN TESTS PASSED");
         $finish;
     end
 

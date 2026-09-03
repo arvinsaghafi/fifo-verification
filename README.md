@@ -38,14 +38,18 @@ When read and write are requested together:
 
 ## Status
 
-FIFO RTL implemented. The basic self-checking test passes for:
-- Reset: FIFO empty, not full, and read output zero.
-- Writing one value: FIFO becomes nonempty.
-- Reading that value: correct data returned and FIFO becomes empty.
+FIFO RTL implemented. Directed tests pass with DATA_WIDTH = 8
+and DEPTH = 8 for:
+
+- Reset: empty asserted, full cleared, and read output zero.
+- Single write/read: correct data returned.
+- Fill: full asserts only after the eighth write.
+- Drain: all eight values return in the correct order.
+- Empty asserts only after the final read.
 
 Verified using Aldec Riviera-PRO 2025.04 on EDA Playground.
 
-Next: test filling and draining the FIFO.
+Next: test write requests while full and read requests while empty.
 
 ## Running the basic test
 
@@ -55,4 +59,4 @@ Next: test filling and draining the FIFO.
 4. Paste `tb/tb_top.sv` into the Testbench pane.
 5. Click Run.
 
-Expected result: `BASIC TEST PASSED`.
+Expected result: `BASIC AND FILL/DRAIN TESTS PASSED`.
