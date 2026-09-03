@@ -1,0 +1,10 @@
+# Generated simulation output
+sim/
+work/
+transcript
+*.vcd
+*.wlf
+
+# Temporary editor files
+*~
+*.swp
