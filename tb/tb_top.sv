@@ -93,6 +93,21 @@ module tb_top;
                        i + 1);
         end
 
+        // Attempt one extra write while the FIFO is full.
+        @(negedge clk);
+        wr_en   = 1'b1;
+        wr_data = '1;
+
+        @(posedge clk);
+        #1;
+        wr_en = 1'b0;
+
+        if (full !== 1'b1)
+            $fatal(1, "FIFO lost full status after a blocked write");
+
+        if (empty !== 1'b0)
+            $fatal(1, "FIFO became empty after a blocked write");
+
         // Read every value from the full FIFO.
         for (int i = 0; i < DEPTH; i++) begin
             @(negedge clk);
@@ -115,7 +130,24 @@ module tb_top;
                        i + 1);
         end
 
-        $display("BASIC AND FILL/DRAIN TESTS PASSED");
+        // Attempt one extra read while the FIFO is empty.
+        @(negedge clk);
+        rd_en = 1'b1;
+
+        @(posedge clk);
+        #1;
+        rd_en = 1'b0;
+
+        if (empty !== 1'b1)
+            $fatal(1, "FIFO lost empty status after a blocked read");
+
+        if (full !== 1'b0)
+            $fatal(1, "FIFO became full after a blocked read");
+
+        if (rd_data !== DATA_WIDTH'(DEPTH))
+            $fatal(1, "rd_data changed after a blocked read");
+
+        $display("DIRECTED FIFO TESTS PASSED");
         $finish;
     end
 

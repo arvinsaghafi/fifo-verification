@@ -46,10 +46,12 @@ and DEPTH = 8 for:
 - Fill: full asserts only after the eighth write.
 - Drain: all eight values return in the correct order.
 - Empty asserts only after the final read.
+- Write while full: flags remain correct and stored data is preserved.
+- Read while empty: flags remain correct and read output holds its value.
 
 Verified using Aldec Riviera-PRO 2025.04 on EDA Playground.
 
-Next: test write requests while full and read requests while empty.
+Next: test simultaneous read and write requests.
 
 ## Running the basic test
 
@@ -59,4 +61,4 @@ Next: test write requests while full and read requests while empty.
 4. Paste `tb/tb_top.sv` into the Testbench pane.
 5. Click Run.
 
-Expected result: `BASIC AND FILL/DRAIN TESTS PASSED`.
+Expected result: `DIRECTED FIFO TESTS PASSED`.
