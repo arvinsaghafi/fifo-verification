@@ -38,4 +38,21 @@ When read and write are requested together:
 
 ## Status
 
-Project setup in progress. RTL and tests are not implemented yet.
+FIFO RTL implemented. The basic self-checking test passes for:
+- Reset: FIFO empty, not full, and read output zero.
+- Writing one value: FIFO becomes nonempty.
+- Reading that value: correct data returned and FIFO becomes empty.
+
+Verified using Aldec Riviera-PRO 2025.04 on EDA Playground.
+
+Next: test filling and draining the FIFO.
+
+## Running the basic test
+
+1. Open EDA Playground.
+2. Select SystemVerilog/Verilog and Aldec Riviera-Pro.
+3. Paste `rtl/fifo.sv` into the Design pane.
+4. Paste `tb/tb_top.sv` into the Testbench pane.
+5. Click Run.
+
+Expected result: `BASIC TEST PASSED`.
