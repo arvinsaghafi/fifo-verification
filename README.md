@@ -51,10 +51,12 @@ and DEPTH = 8 for:
 - Simultaneous read/write: oldest data is returned, new data is stored, and occupancy remains unchanged.
 - Active reset: reset overrides pending reads and writes, clears occupancy, resets both pointers, and clears the read output.
 - Pointer wraparound: interleaved reads and writes force both pointers to wrap while preserving FIFO order.
+- Simultaneous read/write while empty: only the write succeeds and the read output holds its previous value.
+- Simultaneous read/write while full: only the read succeeds and the attempted write is rejected.
 
 Verified using Aldec Riviera-PRO 2025.04 on EDA Playground.
 
-Next: test simultaneous read/write requests at the empty and full boundaries.
+Next: refactor the directed testbench into reusable tasks and test additional parameter configurations.
 
 ## Running the basic test
 

@@ -315,6 +315,94 @@ module tb_top;
         if (empty !== 1'b1 || full !== 1'b0)
             $fatal(1, "Incorrect flags after wraparound drain");
 
+        // Simultaneous read/write while empty.
+        // The read must be rejected, but the write must succeed.
+        @(negedge clk);
+        wr_en   = 1'b1;
+        rd_en   = 1'b1;
+        wr_data = 8'hC1;
+
+        @(posedge clk);
+        #1;
+        wr_en = 1'b0;
+        rd_en = 1'b0;
+
+        if (rd_data !== 8'hB5)
+            $fatal(1,
+                   "Empty simultaneous operation incorrectly changed rd_data");
+
+        if (empty !== 1'b0 || full !== 1'b0)
+            $fatal(1,
+                   "Incorrect flags after empty simultaneous operation");
+
+        // Confirm that C1 was actually stored.
+        @(negedge clk);
+        rd_en = 1'b1;
+
+        @(posedge clk);
+        #1;
+        rd_en = 1'b0;
+
+        if (rd_data !== 8'hC1)
+            $fatal(1, "Expected C1 after empty simultaneous operation");
+
+        if (empty !== 1'b1)
+            $fatal(1, "FIFO should be empty after reading C1");
+
+        // Fill the empty FIFO with D0 through D7.
+        for (int i = 0; i < DEPTH; i++) begin
+            @(negedge clk);
+            wr_en   = 1'b1;
+            wr_data = DATA_WIDTH'(8'hD0 + i);
+
+            @(posedge clk);
+            #1;
+            wr_en = 1'b0;
+        end
+
+        if (full !== 1'b1)
+            $fatal(1, "FIFO should be full before boundary test");
+
+        // Simultaneous read/write while full.
+        // Read D0; reject the write of EE.
+        @(negedge clk);
+        wr_en   = 1'b1;
+        rd_en   = 1'b1;
+        wr_data = 8'hEE;
+
+        @(posedge clk);
+        #1;
+        wr_en = 1'b0;
+        rd_en = 1'b0;
+
+        if (rd_data !== 8'hD0)
+            $fatal(1,
+                   "Full simultaneous operation expected D0, got %h",
+                   rd_data);
+
+        if (full !== 1'b0 || empty !== 1'b0)
+            $fatal(1,
+                   "Incorrect flags after full simultaneous operation");
+
+        // D1 through D7 should remain. EE must not appear.
+        for (int i = 1; i < DEPTH; i++) begin
+            @(negedge clk);
+            rd_en = 1'b1;
+
+            @(posedge clk);
+            #1;
+            rd_en = 1'b0;
+
+            if (rd_data !== DATA_WIDTH'(8'hD0 + i))
+                $fatal(1,
+                       "Expected %h after full boundary operation, got %h",
+                       DATA_WIDTH'(8'hD0 + i), rd_data);
+        end
+
+        if (empty !== 1'b1 || full !== 1'b0)
+            $fatal(1,
+                   "Incorrect flags after full-boundary drain");
+
         $display("DIRECTED FIFO TESTS PASSED");
         $finish;
     end
