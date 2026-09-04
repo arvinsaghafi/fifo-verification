@@ -147,6 +147,48 @@ module tb_top;
         if (rd_data !== DATA_WIDTH'(DEPTH))
             $fatal(1, "rd_data changed after a blocked read");
 
+        // Put one value into the empty FIFO.
+        @(negedge clk);
+        wr_en   = 1'b1;
+        wr_data = 8'h11;
+
+        @(posedge clk);
+        #1;
+        wr_en = 1'b0;
+
+        // Read 11 and write 22 during the same clock edge.
+        @(negedge clk);
+        wr_en   = 1'b1;
+        rd_en   = 1'b1;
+        wr_data = 8'h22;
+
+        @(posedge clk);
+        #1;
+        wr_en = 1'b0;
+        rd_en = 1'b0;
+
+        if (rd_data !== 8'h11)
+            $fatal(1, "Simultaneous read returned %h, expected 11",
+                   rd_data);
+
+        if (empty !== 1'b0 || full !== 1'b0)
+            $fatal(1, "Incorrect flags after simultaneous read/write");
+
+        // Only 22 should remain.
+        @(negedge clk);
+        rd_en = 1'b1;
+
+        @(posedge clk);
+        #1;
+        rd_en = 1'b0;
+
+        if (rd_data !== 8'h22)
+            $fatal(1, "Expected remaining value 22, received %h",
+                   rd_data);
+
+        if (empty !== 1'b1)
+            $fatal(1, "FIFO should be empty after final read");
+
         $display("DIRECTED FIFO TESTS PASSED");
         $finish;
     end

@@ -48,10 +48,11 @@ and DEPTH = 8 for:
 - Empty asserts only after the final read.
 - Write while full: flags remain correct and stored data is preserved.
 - Read while empty: flags remain correct and read output holds its value.
+- Simultaneous read/write: oldest data is returned, new data is stored, and occupancy remains unchanged.
 
 Verified using Aldec Riviera-PRO 2025.04 on EDA Playground.
 
-Next: test simultaneous read and write requests.
+Next: test reset while the FIFO contains active data.
 
 ## Running the basic test
 
