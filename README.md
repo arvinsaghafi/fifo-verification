@@ -36,6 +36,11 @@ When read and write are requested together:
 - `rtl/`: FIFO hardware implementation.
 - `tb/`: testbench and verification components.
 
+## Testbench structure
+
+Reusable tasks drive one-cycle write, read, and simultaneous
+read/write requests. Test checks remain separate from signal driving.
+
 ## Status
 
 FIFO RTL implemented. Directed tests pass with DATA_WIDTH = 8
@@ -56,7 +61,7 @@ and DEPTH = 8 for:
 
 Verified using Aldec Riviera-PRO 2025.04 on EDA Playground.
 
-Next: refactor the directed testbench into reusable tasks and test additional parameter configurations.
+Next: verify the FIFO using different data widths and depths.
 
 ## Running the basic test
 
