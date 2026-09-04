@@ -15,6 +15,9 @@ module tb_top;
     logic full;
     logic empty;
 
+    logic [DATA_WIDTH-1:0] observed_data;
+    logic [DATA_WIDTH-1:0] expected_data;
+
     fifo #(
         .DATA_WIDTH(DATA_WIDTH),
         .DEPTH(DEPTH)
@@ -227,6 +230,90 @@ module tb_top;
         // Release reset for future tests.
         @(negedge clk);
         rst_n = 1'b1;
+
+        // FIFO is empty and both pointers are zero after reset.
+
+        // Write A0 through A5.
+        for (int i = 0; i < 6; i++) begin
+            @(negedge clk);
+            wr_en   = 1'b1;
+            wr_data = DATA_WIDTH'(8'hA0 + i);
+
+            @(posedge clk);
+            #1;
+            wr_en = 1'b0;
+        end
+
+        // Read A0 through A3, leaving A4 and A5.
+        for (int i = 0; i < 4; i++) begin
+            @(negedge clk);
+            rd_en = 1'b1;
+
+            @(posedge clk);
+            #1;
+            rd_en = 1'b0;
+
+            if (rd_data !== DATA_WIDTH'(8'hA0 + i))
+                $fatal(1,
+                       "Wrap setup: expected %h, received %h",
+                       DATA_WIDTH'(8'hA0 + i), rd_data);
+        end
+
+        if (empty !== 1'b0 || full !== 1'b0)
+            $fatal(1, "Incorrect flags during wraparound setup");
+
+        // Write B0 through B5.
+        // The pointer passes location 7 and wraps to location 0.
+        for (int i = 0; i < 6; i++) begin
+            @(negedge clk);
+            wr_en   = 1'b1;
+            wr_data = DATA_WIDTH'(8'hB0 + i);
+
+            @(posedge clk);
+            #1;
+            wr_en = 1'b0;
+
+            if (full !== (i == 5))
+                $fatal(1,
+                       "Incorrect full flag during wraparound write %0d",
+                       i + 1);
+        end
+
+        // FIFO should now contain:
+        // A4, A5, B0, B1, B2, B3, B4, B5
+
+        // First read A4 and A5.
+        for (int i = 0; i < 2; i++) begin
+            @(negedge clk);
+            rd_en = 1'b1;
+
+            @(posedge clk);
+            #1;
+            rd_en = 1'b0;
+
+            if (rd_data !== DATA_WIDTH'(8'hA4 + i))
+                $fatal(1,
+                       "Wrap drain: expected %h, received %h",
+                       DATA_WIDTH'(8'hA4 + i), rd_data);
+        end
+
+        // Then read B0 through B5.
+        for (int i = 0; i < 6; i++) begin
+            @(negedge clk);
+            rd_en = 1'b1;
+
+            @(posedge clk);
+            #1;
+            rd_en = 1'b0;
+
+            if (rd_data !== DATA_WIDTH'(8'hB0 + i))
+                $fatal(1,
+                       "Wrap drain: expected %h, received %h",
+                       DATA_WIDTH'(8'hB0 + i), rd_data);
+        end
+
+        if (empty !== 1'b1 || full !== 1'b0)
+            $fatal(1, "Incorrect flags after wraparound drain");
 
         $display("DIRECTED FIFO TESTS PASSED");
         $finish;
