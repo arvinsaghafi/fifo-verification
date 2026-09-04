@@ -49,6 +49,7 @@ and DEPTH = 8 for:
 - Write while full: flags remain correct and stored data is preserved.
 - Read while empty: flags remain correct and read output holds its value.
 - Simultaneous read/write: oldest data is returned, new data is stored, and occupancy remains unchanged.
+- Active reset: reset overrides pending reads and writes, clears occupancy, resets both pointers, and clears the read output.
 
 Verified using Aldec Riviera-PRO 2025.04 on EDA Playground.
 

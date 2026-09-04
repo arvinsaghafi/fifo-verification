@@ -189,6 +189,45 @@ module tb_top;
         if (empty !== 1'b1)
             $fatal(1, "FIFO should be empty after final read");
 
+        // Store two values before resetting.
+        for (int i = 0; i < 2; i++) begin
+            @(negedge clk);
+            wr_en   = 1'b1;
+            wr_data = DATA_WIDTH'(8'hD1 + i);
+
+            @(posedge clk);
+            #1;
+            wr_en = 1'b0;
+        end
+
+        if (empty !== 1'b0)
+            $fatal(1, "FIFO should contain data before active reset");
+
+        // Assert reset while both operations are requested.
+        @(negedge clk);
+        rst_n   = 1'b0;
+        wr_en   = 1'b1;
+        rd_en   = 1'b1;
+        wr_data = 8'hFF;
+
+        @(posedge clk);
+        #1;
+        wr_en = 1'b0;
+        rd_en = 1'b0;
+
+        if (empty !== 1'b1)
+            $fatal(1, "FIFO should be empty after active reset");
+
+        if (full !== 1'b0)
+            $fatal(1, "FIFO should not be full after active reset");
+
+        if (rd_data !== '0)
+            $fatal(1, "rd_data should be zero after active reset");
+
+        // Release reset for future tests.
+        @(negedge clk);
+        rst_n = 1'b1;
+
         $display("DIRECTED FIFO TESTS PASSED");
         $finish;
     end
