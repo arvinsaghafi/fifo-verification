@@ -59,9 +59,16 @@ and DEPTH = 8 for:
 - Simultaneous read/write while empty: only the write succeeds and the read output holds its previous value.
 - Simultaneous read/write while full: only the read succeeds and the attempted write is rejected.
 
+The complete directed test suite also passes for:
+
+- `DATA_WIDTH = 8`, `DEPTH = 8` - default configuration.
+- `DATA_WIDTH = 8`, `DEPTH = 5` - non-power-of-two depth.
+- `DATA_WIDTH = 16`, `DEPTH = 5` - wider data and non-power-of-two depth.
+- `DATA_WIDTH = 8`, `DEPTH = 2` - smallest currently supported depth.
+
 Verified using Aldec Riviera-PRO 2025.04 on EDA Playground.
 
-Next: verify the FIFO using different data widths and depths.
+Next: introduce a SystemVerilog interface to group the FIFO signals.
 
 ## Running the basic test
 

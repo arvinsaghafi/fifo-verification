@@ -5,6 +5,10 @@ module tb_top;
     localparam int DATA_WIDTH = 8;
     localparam int DEPTH = 8;
 
+    localparam logic [DATA_WIDTH-1:0] WIDTH_TEST_VALUE =
+        (DATA_WIDTH'(1) << (DATA_WIDTH - 1))
+        | DATA_WIDTH'(8'h5A);
+
     logic clk = 0;
     logic rst_n = 0;
     logic wr_en = 0;
@@ -91,16 +95,16 @@ module tb_top;
         @(negedge clk);
         rst_n = 1'b1;
 
-        // Write 8'hA5.
-        write_item(8'hA5);
+        write_item(WIDTH_TEST_VALUE);
 
         if (empty !== 1'b0)
             $fatal(1, "FIFO should not be empty after a write");
 
         read_item(observed_data);
 
-        if (observed_data !== 8'hA5)
-            $fatal(1, "Expected A5, received %h", observed_data);
+        if (observed_data !== WIDTH_TEST_VALUE)
+            $fatal(1, "Expected %h, received %h",
+                   WIDTH_TEST_VALUE, observed_data);
 
         if (empty !== 1'b1)
             $fatal(1, "FIFO should be empty after the read");
@@ -214,50 +218,44 @@ module tb_top;
         @(negedge clk);
         rst_n = 1'b1;
 
-        // FIFO is empty and both pointers are zero after reset.
+        // Parameter-independent wraparound test.
+        // Write DEPTH-1 values, read one to create two free spaces,
+        // then write two more values. Both pointers must wrap.
 
-        // Write A0 through A5.
-        for (int i = 0; i < 6; i++)
+        // Write A0 through A(DEPTH-2).
+        for (int i = 0; i < DEPTH - 1; i++)
             write_item(DATA_WIDTH'(8'hA0 + i));
 
-        // Read A0 through A3, leaving A4 and A5.
-        for (int i = 0; i < 4; i++) begin
-            read_item(observed_data);
+        // Remove A0.
+        read_item(observed_data);
 
-            if (observed_data !== DATA_WIDTH'(8'hA0 + i))
-                $fatal(1,
-                       "Wrap setup: expected %h, received %h",
-                       DATA_WIDTH'(8'hA0 + i), observed_data);
-        end
+        if (observed_data !== DATA_WIDTH'(8'hA0))
+            $fatal(1,
+                   "Wrap setup: expected A0, received %h",
+                   observed_data);
 
-        if (empty !== 1'b0 || full !== 1'b0)
-            $fatal(1, "Incorrect flags during wraparound setup");
-
-        // Write B0 through B5, forcing the write pointer to wrap.
-        for (int i = 0; i < 6; i++) begin
+        // Write B0 and B1. These writes cross the memory boundary.
+        for (int i = 0; i < 2; i++) begin
             write_item(DATA_WIDTH'(8'hB0 + i));
 
-            if (full !== (i == 5))
+            if (full !== (i == 1))
                 $fatal(1,
                        "Incorrect full flag during wraparound write %0d",
                        i + 1);
         end
 
-        // FIFO now contains:
-        // A4, A5, B0, B1, B2, B3, B4, B5
-
-        // Read A4 and A5.
-        for (int i = 0; i < 2; i++) begin
+        // Remaining A values must come first.
+        for (int i = 1; i < DEPTH - 1; i++) begin
             read_item(observed_data);
 
-            if (observed_data !== DATA_WIDTH'(8'hA4 + i))
+            if (observed_data !== DATA_WIDTH'(8'hA0 + i))
                 $fatal(1,
                        "Wrap drain: expected %h, received %h",
-                       DATA_WIDTH'(8'hA4 + i), observed_data);
+                       DATA_WIDTH'(8'hA0 + i), observed_data);
         end
 
-        // Read B0 through B5, forcing the read pointer to wrap.
-        for (int i = 0; i < 6; i++) begin
+        // Then B0 and B1 must appear.
+        for (int i = 0; i < 2; i++) begin
             read_item(observed_data);
 
             if (observed_data !== DATA_WIDTH'(8'hB0 + i))
@@ -273,7 +271,7 @@ module tb_top;
         // Read rejected; write of C1 accepted.
         read_write_item(8'hC1, observed_data);
 
-        if (observed_data !== 8'hB5)
+        if (observed_data !== DATA_WIDTH'(8'hB1))
             $fatal(1,
                    "Empty simultaneous operation changed rd_data");
 
@@ -290,7 +288,7 @@ module tb_top;
         if (empty !== 1'b1)
             $fatal(1, "FIFO should be empty after reading C1");
 
-        // Fill the FIFO with D0 through D7.
+        // Fill the FIFO with DEPTH values starting at D0.
         for (int i = 0; i < DEPTH; i++)
             write_item(DATA_WIDTH'(8'hD0 + i));
 
@@ -310,7 +308,7 @@ module tb_top;
             $fatal(1,
                    "Incorrect flags after full simultaneous operation");
 
-        // D1 through D7 should remain. EE must not appear.
+        // Remaining values starting at D1 must appear. EE must not appear.
         for (int i = 1; i < DEPTH; i++) begin
             read_item(observed_data);
 
