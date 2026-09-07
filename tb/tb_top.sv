@@ -4,6 +4,7 @@
 `include "driver.sv"
 `include "monitor.sv"
 `include "scoreboard.sv"
+`include "fifo_sva.sv"
 
 module tb_top;
     timeunit 1ns;
@@ -49,6 +50,22 @@ module tb_top;
         .rd_data (fifo_bus.rd_data),
         .full    (fifo_bus.full),
         .empty   (fifo_bus.empty)
+    );
+
+    fifo_sva #(
+        .DATA_WIDTH(DATA_WIDTH),
+        .DEPTH     (DEPTH)
+    ) fifo_assertions (
+        .clk     (clk),
+        .rst_n   (fifo_bus.rst_n),
+        .wr_en   (fifo_bus.wr_en),
+        .rd_en   (fifo_bus.rd_en),
+        .rd_data (fifo_bus.rd_data),
+        .full    (fifo_bus.full),
+        .empty   (fifo_bus.empty),
+        .wr_ptr  (dut.wr_ptr),
+        .rd_ptr  (dut.rd_ptr),
+        .count   (dut.count)
     );
 
     always #5 clk = ~clk;
