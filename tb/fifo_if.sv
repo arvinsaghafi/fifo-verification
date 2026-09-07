@@ -36,4 +36,15 @@ interface fifo_if #(
         output wr_data
     );
 
+    modport monitor (
+    input clk,
+    input rst_n,
+    input wr_en,
+    input rd_en,
+    input wr_data,
+    input rd_data,
+    input full,
+    input empty
+    );
+
 endinterface

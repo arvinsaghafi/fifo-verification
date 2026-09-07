@@ -2,6 +2,7 @@
 `include "transaction.sv"
 `include "generator.sv"
 `include "driver.sv"
+`include "monitor.sv"
 
 module tb_top;
     timeunit 1ns;
@@ -27,8 +28,11 @@ module tb_top;
     typedef fifo_transaction #(DATA_WIDTH) transaction_t;
 
     mailbox #(transaction_t) generator_mailbox;
+    mailbox #(transaction_t) monitor_mailbox;
+
     fifo_generator #(DATA_WIDTH) generator;
-    fifo_driver #(DATA_WIDTH) driver;
+    fifo_driver    #(DATA_WIDTH) driver;
+    fifo_monitor   #(DATA_WIDTH) monitor;
 
     fifo #(
         .DATA_WIDTH(DATA_WIDTH),
@@ -88,8 +92,11 @@ module tb_top;
 
     initial begin
         generator_mailbox = new();
+        monitor_mailbox   = new();
+
         generator = new(generator_mailbox);
-        driver = new(generator_mailbox, fifo_bus);
+        driver    = new(generator_mailbox, fifo_bus);
+        monitor   = new(monitor_mailbox, fifo_bus);
 
         // Initialize signals driven by the testbench.
         fifo_bus.rst_n   = 1'b0;
@@ -335,13 +342,17 @@ module tb_top;
         fork
             generator.run(5);
             driver.run(5);
+            monitor.run(5);
         join
 
         if (generator_mailbox.num() != 0)
             $fatal(1, "Driver did not consume every transaction");
 
-        $display("RANDOM DRIVER SMOKE TEST COMPLETED");
-        
+        if (monitor_mailbox.num() != 5)
+            $fatal(1, "Monitor did not capture five transactions");
+
+        $display("RANDOM MONITOR SMOKE TEST COMPLETED");
+
         $display("DIRECTED FIFO TESTS PASSED");
         $finish;
     end
