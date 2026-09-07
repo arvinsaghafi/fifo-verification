@@ -1,4 +1,5 @@
 `include "fifo_if.sv"
+`include "transaction.sv"
 
 module tb_top;
     timeunit 1ns;
@@ -20,6 +21,8 @@ module tb_top;
     );
 
     logic [DATA_WIDTH-1:0] observed_data;
+
+    fifo_transaction #(DATA_WIDTH) transaction;
 
     fifo #(
         .DATA_WIDTH(DATA_WIDTH),
@@ -78,6 +81,16 @@ module tb_top;
     endtask
 
     initial begin
+        transaction = new();
+
+        if (!transaction.randomize())
+            $fatal(1, "Transaction randomization failed");
+
+        $display("RANDOM TRANSACTION: wr_en=%0b rd_en=%0b wr_data=%0h",
+                transaction.wr_en,
+                transaction.rd_en,
+                transaction.wr_data);
+
         // Initialize signals driven by the testbench.
         fifo_bus.rst_n   = 1'b0;
         fifo_bus.wr_en   = 1'b0;

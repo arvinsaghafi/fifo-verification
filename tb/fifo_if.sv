@@ -14,4 +14,26 @@ interface fifo_if #(
     logic full;
     logic empty;
 
+    modport dut (
+        input  clk,
+        input  rst_n,
+        input  wr_en,
+        input  rd_en,
+        input  wr_data,
+        output rd_data,
+        output full,
+        output empty
+    );
+
+    modport tb (
+        input  clk,
+        input  rd_data,
+        input  full,
+        input  empty,
+        output rst_n,
+        output wr_en,
+        output rd_en,
+        output wr_data
+    );
+
 endinterface
