@@ -3,6 +3,7 @@
 `include "generator.sv"
 `include "driver.sv"
 `include "monitor.sv"
+`include "scoreboard.sv"
 
 module tb_top;
     timeunit 1ns;
@@ -30,9 +31,10 @@ module tb_top;
     mailbox #(transaction_t) generator_mailbox;
     mailbox #(transaction_t) monitor_mailbox;
 
-    fifo_generator #(DATA_WIDTH) generator;
-    fifo_driver    #(DATA_WIDTH) driver;
-    fifo_monitor   #(DATA_WIDTH) monitor;
+    fifo_generator  #(DATA_WIDTH) generator;
+    fifo_driver     #(DATA_WIDTH) driver;
+    fifo_monitor    #(DATA_WIDTH) monitor;
+    fifo_scoreboard #(DATA_WIDTH, DEPTH) scoreboard;
 
     fifo #(
         .DATA_WIDTH(DATA_WIDTH),
@@ -94,9 +96,10 @@ module tb_top;
         generator_mailbox = new();
         monitor_mailbox   = new();
 
-        generator = new(generator_mailbox);
-        driver    = new(generator_mailbox, fifo_bus);
-        monitor   = new(monitor_mailbox, fifo_bus);
+        generator  = new(generator_mailbox);
+        driver     = new(generator_mailbox, fifo_bus);
+        monitor    = new(monitor_mailbox, fifo_bus);
+        scoreboard = new(monitor_mailbox);
 
         // Initialize signals driven by the testbench.
         fifo_bus.rst_n   = 1'b0;
@@ -339,21 +342,51 @@ module tb_top;
             $fatal(1,
                    "Incorrect flags after full-boundary drain");
 
+        $display("DIRECTED FIFO TESTS PASSED");
+
+        // Reset before randomized testing so that the DUT and
+        // scoreboard both start empty with rd_data equal to zero.
+        @(negedge clk);
+        fifo_bus.rst_n   = 1'b0;
+        fifo_bus.wr_en   = 1'b0;
+        fifo_bus.rd_en   = 1'b0;
+        fifo_bus.wr_data = '0;
+
+        @(posedge clk);
+        #1;
+
+        if (fifo_bus.empty !== 1'b1 ||
+            fifo_bus.full !== 1'b0 ||
+            fifo_bus.rd_data !== '0)
+            $fatal(1, "Incorrect state before randomized test");
+
+        // We are already one timestep after the reset clock edge.
+        // Release reset now so the driver can use the upcoming negative edge.
+        fifo_bus.rst_n = 1'b1;
+
         fork
             generator.run(5);
             driver.run(5);
             monitor.run(5);
+            scoreboard.run(5);
         join
 
         if (generator_mailbox.num() != 0)
             $fatal(1, "Driver did not consume every transaction");
 
-        if (monitor_mailbox.num() != 5)
-            $fatal(1, "Monitor did not capture five transactions");
+        if (monitor_mailbox.num() != 0)
+            $fatal(1, "Scoreboard did not consume every observation");
 
-        $display("RANDOM MONITOR SMOKE TEST COMPLETED");
+        if (scoreboard.checked_count != 5)
+            $fatal(1, "Scoreboard did not check five transactions");
 
-        $display("DIRECTED FIFO TESTS PASSED");
+        if (scoreboard.error_count != 0)
+            $fatal(1,
+                   "Random test failed with %0d scoreboard errors",
+                   scoreboard.error_count);
+
+        $display("RANDOM SELF-CHECKING TEST PASSED");
+        $display("ALL FIFO TESTS PASSED");
         $finish;
     end
 

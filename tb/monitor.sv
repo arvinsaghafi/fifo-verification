@@ -24,18 +24,18 @@ class fifo_monitor #(
             observed = new();
 
             // Capture the request and pre-edge state.
-            observed.rst_n       = vif.rst_n;
-            observed.wr_en       = vif.wr_en;
-            observed.rd_en       = vif.rd_en;
-            observed.wr_data     = vif.wr_data;
-            observed.full_before = vif.full;
+            observed.rst_n        = vif.rst_n;
+            observed.wr_en        = vif.wr_en;
+            observed.rd_en        = vif.rd_en;
+            observed.wr_data      = vif.wr_data;
+            observed.full_before  = vif.full;
             observed.empty_before = vif.empty;
 
             // Wait for sequential DUT updates.
             #1step;
 
-            observed.rd_data    = vif.rd_data;
-            observed.full_after = vif.full;
+            observed.rd_data     = vif.rd_data;
+            observed.full_after  = vif.full;
             observed.empty_after = vif.empty;
 
             output_mailbox.put(observed);
