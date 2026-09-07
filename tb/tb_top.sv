@@ -11,6 +11,7 @@ module tb_top;
 
     localparam int DATA_WIDTH = 8;
     localparam int DEPTH = 8;
+    localparam int RANDOM_TRANSACTION_COUNT = 100;
 
     localparam logic [DATA_WIDTH-1:0] WIDTH_TEST_VALUE =
         (DATA_WIDTH'(1) << (DATA_WIDTH - 1))
@@ -365,10 +366,10 @@ module tb_top;
         fifo_bus.rst_n = 1'b1;
 
         fork
-            generator.run(5);
-            driver.run(5);
-            monitor.run(5);
-            scoreboard.run(5);
+            generator.run(RANDOM_TRANSACTION_COUNT);
+            driver.run(RANDOM_TRANSACTION_COUNT);
+            monitor.run(RANDOM_TRANSACTION_COUNT);
+            scoreboard.run(RANDOM_TRANSACTION_COUNT);
         join
 
         if (generator_mailbox.num() != 0)
@@ -377,8 +378,11 @@ module tb_top;
         if (monitor_mailbox.num() != 0)
             $fatal(1, "Scoreboard did not consume every observation");
 
-        if (scoreboard.checked_count != 5)
-            $fatal(1, "Scoreboard did not check five transactions");
+        if (scoreboard.checked_count != RANDOM_TRANSACTION_COUNT)
+            $fatal(1,
+                   "Scoreboard checked %0d transactions, expected %0d",
+                   scoreboard.checked_count,
+                   RANDOM_TRANSACTION_COUNT);
 
         if (scoreboard.error_count != 0)
             $fatal(1,
