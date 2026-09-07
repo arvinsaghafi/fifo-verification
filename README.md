@@ -38,8 +38,7 @@ When read and write are requested together:
 
 ## Testbench structure
 
-Reusable tasks drive one-cycle write, read, and simultaneous
-read/write requests. Test checks remain separate from signal driving.
+A SystemVerilog interface groups the FIFO control, data, and status signals shared between the DUT and testbench. Reusable tasks drive one-cycle write, read, and simultaneous read/write requests. Test checks remain separate from signal driving.
 
 ## Status
 
