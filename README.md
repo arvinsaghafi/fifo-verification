@@ -41,7 +41,9 @@ A SystemVerilog interface groups the FIFO control, data, and status signals shar
 
 Reusable tasks drive one-cycle write, read, and simultaneous read/write requests. Test checks remain separate from signal driving.
 
-A parameterized transaction class represents one cycle of FIFO stimulus and observed results. Transaction randomization has been tested, but randomized transactions do not drive the DUT yet.
+A parameterized transaction class represents one cycle of FIFO activity. The generator randomizes transactions and sends them through a typed mailbox. The driver consumes those transactions and applies them to the interface through a virtual interface.
+
+The generator-to-driver path currently passes a five-transaction smoke test. Random traffic is not yet self-checking.
 
 ## Status
 

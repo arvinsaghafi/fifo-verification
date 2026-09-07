@@ -1,5 +1,7 @@
 `include "fifo_if.sv"
 `include "transaction.sv"
+`include "generator.sv"
+`include "driver.sv"
 
 module tb_top;
     timeunit 1ns;
@@ -22,7 +24,11 @@ module tb_top;
 
     logic [DATA_WIDTH-1:0] observed_data;
 
-    fifo_transaction #(DATA_WIDTH) transaction;
+    typedef fifo_transaction #(DATA_WIDTH) transaction_t;
+
+    mailbox #(transaction_t) generator_mailbox;
+    fifo_generator #(DATA_WIDTH) generator;
+    fifo_driver #(DATA_WIDTH) driver;
 
     fifo #(
         .DATA_WIDTH(DATA_WIDTH),
@@ -81,15 +87,9 @@ module tb_top;
     endtask
 
     initial begin
-        transaction = new();
-
-        if (!transaction.randomize())
-            $fatal(1, "Transaction randomization failed");
-
-        $display("RANDOM TRANSACTION: wr_en=%0b rd_en=%0b wr_data=%0h",
-                transaction.wr_en,
-                transaction.rd_en,
-                transaction.wr_data);
+        generator_mailbox = new();
+        generator = new(generator_mailbox);
+        driver = new(generator_mailbox, fifo_bus);
 
         // Initialize signals driven by the testbench.
         fifo_bus.rst_n   = 1'b0;
@@ -332,6 +332,16 @@ module tb_top;
             $fatal(1,
                    "Incorrect flags after full-boundary drain");
 
+        fork
+            generator.run(5);
+            driver.run(5);
+        join
+
+        if (generator_mailbox.num() != 0)
+            $fatal(1, "Driver did not consume every transaction");
+
+        $display("RANDOM DRIVER SMOKE TEST COMPLETED");
+        
         $display("DIRECTED FIFO TESTS PASSED");
         $finish;
     end
