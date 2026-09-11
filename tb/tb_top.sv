@@ -4,6 +4,7 @@
 `include "driver.sv"
 `include "monitor.sv"
 `include "scoreboard.sv"
+`include "coverage.sv"
 `include "fifo_sva.sv"
 
 module tb_top;
@@ -13,6 +14,12 @@ module tb_top;
     localparam int DATA_WIDTH = 8;
     localparam int DEPTH = 8;
     localparam int RANDOM_TRANSACTION_COUNT = 100;
+
+    localparam int TARGETED_TRANSACTION_COUNT = (2 * DEPTH) + 10;
+
+    localparam int TOTAL_TRANSACTION_COUNT =
+        TARGETED_TRANSACTION_COUNT +
+        RANDOM_TRANSACTION_COUNT;
 
     localparam logic [DATA_WIDTH-1:0] WIDTH_TEST_VALUE =
         (DATA_WIDTH'(1) << (DATA_WIDTH - 1))
@@ -32,11 +39,13 @@ module tb_top;
 
     mailbox #(transaction_t) generator_mailbox;
     mailbox #(transaction_t) monitor_mailbox;
+    mailbox #(transaction_t) coverage_mailbox;
 
-    fifo_generator  #(DATA_WIDTH) generator;
+    fifo_generator  #(DATA_WIDTH, DEPTH) generator;
     fifo_driver     #(DATA_WIDTH) driver;
     fifo_monitor    #(DATA_WIDTH) monitor;
     fifo_scoreboard #(DATA_WIDTH, DEPTH) scoreboard;
+    fifo_coverage   #(DATA_WIDTH, DEPTH) coverage_collector;
 
     fifo #(
         .DATA_WIDTH(DATA_WIDTH),
@@ -113,11 +122,20 @@ module tb_top;
     initial begin
         generator_mailbox = new();
         monitor_mailbox   = new();
+        coverage_mailbox  = new();
 
-        generator  = new(generator_mailbox);
-        driver     = new(generator_mailbox, fifo_bus);
-        monitor    = new(monitor_mailbox, fifo_bus);
+        generator = new(generator_mailbox);
+        driver    = new(generator_mailbox, fifo_bus);
+
+        monitor = new(
+            monitor_mailbox,
+            coverage_mailbox,
+            fifo_bus
+        );
+
         scoreboard = new(monitor_mailbox);
+
+        coverage_collector = new(coverage_mailbox);
 
         // Initialize signals driven by the testbench.
         fifo_bus.rst_n   = 1'b0;
@@ -384,9 +402,10 @@ module tb_top;
 
         fork
             generator.run(RANDOM_TRANSACTION_COUNT);
-            driver.run(RANDOM_TRANSACTION_COUNT);
-            monitor.run(RANDOM_TRANSACTION_COUNT);
-            scoreboard.run(RANDOM_TRANSACTION_COUNT);
+            driver.run(TOTAL_TRANSACTION_COUNT);
+            monitor.run(TOTAL_TRANSACTION_COUNT);
+            scoreboard.run(TOTAL_TRANSACTION_COUNT);
+            coverage_collector.run(TOTAL_TRANSACTION_COUNT);
         join
 
         if (generator_mailbox.num() != 0)
@@ -395,18 +414,28 @@ module tb_top;
         if (monitor_mailbox.num() != 0)
             $fatal(1, "Scoreboard did not consume every observation");
 
-        if (scoreboard.checked_count != RANDOM_TRANSACTION_COUNT)
+        if (coverage_mailbox.num() != 0)
+            $fatal(1, "Coverage collector did not consume every observation");
+
+        if (coverage_collector.sample_count !=
+            TOTAL_TRANSACTION_COUNT)
             $fatal(1,
-                   "Scoreboard checked %0d transactions, expected %0d",
-                   scoreboard.checked_count,
-                   RANDOM_TRANSACTION_COUNT);
+                "Coverage sampled %0d transactions, expected %0d",
+                coverage_collector.sample_count,
+                TOTAL_TRANSACTION_COUNT);
+
+        if (scoreboard.checked_count != TOTAL_TRANSACTION_COUNT)
+            $fatal(1,
+                "Scoreboard checked %0d transactions, expected %0d",
+                scoreboard.checked_count,
+                TOTAL_TRANSACTION_COUNT);
 
         if (scoreboard.error_count != 0)
             $fatal(1,
                    "Random test failed with %0d scoreboard errors",
                    scoreboard.error_count);
 
-        $display("RANDOM SELF-CHECKING TEST PASSED");
+        $display("TARGETED AND RANDOM SELF-CHECKING TEST PASSED");
         $display("ALL FIFO TESTS PASSED");
         $finish;
     end

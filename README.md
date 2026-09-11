@@ -31,26 +31,38 @@ When read and write are requested together:
 
 ## Project structure
 
-* `rtl/fifo.sv`: Parameterized FIFO hardware implementation.
-* `tb/fifo_if.sv`: Interface connecting the DUT and verification components.
-* `tb/transaction.sv`: Parameterized FIFO transaction class.
-* `tb/generator.sv`: Constrained-random transaction generator.
-* `tb/driver.sv`: Applies generated transactions to the interface.
-* `tb/monitor.sv`: Passively observes FIFO activity.
-* `tb/scoreboard.sv`: Queue-based reference model and automatic checker.
-* `tb/tb_top.sv`: Testbench construction and directed tests.
-* `assertions/fifo_sva.sv`: SystemVerilog Assertions for FIFO properties.
+```
+fifo-verification/
+├── rtl/
+│   └── fifo.sv          Parameterized FIFO hardware implementation
+├── tb/
+│   ├── fifo_if.sv       Interface connecting the DUT and verification components
+│   ├── transaction.sv   Parameterized FIFO transaction class
+│   ├── generator.sv     Targeted and constrained-random transaction generator
+│   ├── driver.sv        Applies generated transactions to the interface
+│   ├── monitor.sv       Passively observes FIFO activity
+│   ├── scoreboard.sv    Queue-based reference model and automatic checker
+│   ├── coverage.sv      Functional coverage collector
+│   └── tb_top.sv        Testbench construction and directed tests
+├── assertions/
+│   └── fifo_sva.sv      SystemVerilog Assertions for FIFO properties
+├── .gitignore
+└── README.md
+```
 
 ## Verification architecture
 
-* Interface: Groups the FIFO control, data, and status signals. Modports define access for the DUT, driver, and monitor.
-* Transaction: Represents one cycle of requested and observed FIFO activity.
-* Generator: Creates randomized transactions and sends them through a typed mailbox.
-* Driver: Receives transactions and applies them through a virtual interface.
-* Monitor: Samples requests, pre-edge status, and post-edge results before sending observations to the scoreboard.
-* Scoreboard: Uses a SystemVerilog queue as an independent FIFO reference model and compares expected behavior against the DUT.
-* Assertions: Continuously check reset, flags, occupancy, pointer behavior, and boundary conditions.
-* Directed-test tasks: Drive specific write, read, and simultaneous operations while keeping signal driving separate from checking.
+* **Interface:** Groups the FIFO control, data, and status signals. Modports define access for the DUT, driver, and monitor.
+* **Transaction:** Represents one cycle of requested and observed FIFO activity.
+* **Generator:** Produces targeted coverage stimulus followed by constrained-random transactions.
+* **Driver:** Receives transactions through a typed mailbox and applies them using a virtual interface.
+* **Monitor:** Samples requests, pre-edge status, and post-edge results.
+* **Scoreboard:** Uses a SystemVerilog queue as an independent FIFO reference model and checks every monitored transaction.
+* **Coverage collector:** Maintains a separate expected occupancy and samples user-defined coverage bins.
+* **Assertions:** Continuously check reset, flags, occupancy, pointer movement, and boundary behavior.
+* **Directed-test tasks:** Exercise specific FIFO operations while keeping signal driving separate from checking.
+
+The monitor broadcasts every observation through two mailboxes. One copy goes to the scoreboard for correctness checking, while the other goes to the coverage collector for completeness measurement.
 
 ## Directed verification
 
@@ -69,40 +81,42 @@ The directed test suite covers:
 * Simultaneous read/write while full.
 * FIFO ordering and flag behavior throughout these cases.
 
-The complete directed test suite passes for:
+The directed suite passes for:
 
 * `DATA_WIDTH = 8`, `DEPTH = 8`: Default configuration.
 * `DATA_WIDTH = 8`, `DEPTH = 5`: Non-power-of-two depth.
 * `DATA_WIDTH = 16`, `DEPTH = 5`: Wider data and non-power-of-two depth.
 * `DATA_WIDTH = 8`, `DEPTH = 2`: Smallest currently supported depth.
 
-## Constrained-random verification
-
-The generator currently produces 100 transactions per test.
-
-Operation selection is weighted as follows:
-
-* Idle: 10%.
-* Read only: 35%.
-* Write only: 35%.
-* Simultaneous read/write: 20%.
+## Self-checking verification
 
 The scoreboard automatically checks:
 
 * FIFO data ordering.
 * Accepted and rejected operations.
 * Read-output behavior.
-* Occupancy.
+* Expected occupancy.
 * Full and empty flags.
 * Simultaneous boundary behavior.
 
-Seeds `12345` and `67890` passed. Repeating a seed produces the same transaction sequence, allowing failures to be reproduced.
+Every monitored transaction is compared against the independent queue-based reference model. The test fails automatically if the DUT produces an unexpected result.
 
-A temporary read-data corruption was injected into the monitor to confirm that the scoreboard detects incorrect data. The original code was restored afterward.
+## Constrained-random stimulus
 
-## SystemVerilog assertions
+The generator produces 100 constrained-random transactions per test.
 
-Assertions currently verify:
+Requested operations are weighted as follows:
+
+* Idle: 10%.
+* Read only: 35%.
+* Write only: 35%.
+* Simultaneous read/write: 20%.
+
+Seeds `12345` and `67890` passed. Repeating a seed produces the same randomized transaction sequence, allowing failures to be reproduced.
+
+## SystemVerilog Assertions
+
+Assertions verify:
 
 * Reset clears the FIFO state.
 * `full` and `empty` are never asserted together.
@@ -117,13 +131,49 @@ Assertions currently verify:
 * Accepted operations increment or wrap their corresponding pointers.
 * Rejected or absent operations leave their corresponding pointers unchanged.
 
-A temporary write-pointer wraparound bug was injected into the RTL. The write-pointer assertion detected the bug before the resulting data corruption caused the directed test to fail. The correct RTL was then restored and passed all tests.
+## Functional coverage
+
+Functional coverage measures whether the testbench exercised every scenario defined in the verification plan.
+
+The coverage model includes:
+
+* All four requested operations: idle, read, write, and simultaneous read/write.
+* All four accepted-operation outcomes: neither, read only, write only, and both.
+* Every occupancy level from zero through `DEPTH`.
+* Empty, partially full, and full states.
+* Empty-to-non-empty and non-empty-to-empty transitions.
+* Almost-full-to-full and full-to-almost-full transitions.
+* A cross of FIFO state against requested operation.
+
+A parameterized targeted sequence exercises:
+
+* All four operations while empty.
+* All four operations while partially full.
+* Every occupancy level while filling.
+* All four operations while full.
+* Every occupancy level while draining.
+
+The targeted sequence length is: `(2 × DEPTH) + 10`
+
+The targeted sequence ensures that the planned coverage bins are exercised. Constrained-random traffic follows the targeted sequence to provide additional sequence and data variation.
+
+## Verification results
+
+| Data width | Depth | Targeted transactions | Random transactions | Total | Functional coverage |
+| ---------: | ----: | --------------------: | ------------------: | ----: | ------------------: |
+|          8 |     8 |                    26 |                 100 |   126 |                100% |
+|         16 |     5 |                    20 |                 100 |   120 |                100% |
+|          8 |     2 |                    14 |                 100 |   114 |                100% |
+
+All listed configurations passed the scoreboard and SystemVerilog Assertions with zero errors.
+
+Reaching 100% functional coverage means that every currently defined coverage bin was hit. It does not account for scenarios that are not included in the coverage model.
 
 ## Simulator
 
-Directed tests were initially verified with Aldec Riviera-PRO 2025.04.
+Directed tests were verified with Aldec Riviera-PRO 2025.04.
 
-Class-based randomization, constrained-random verification, scoreboarding, and assertions were verified with Siemens QuestaSim 2025.2 because the Riviera-PRO EDU license does not enable the required advanced verification features.
+The complete class-based verification environment, including constrained randomization, scoreboarding, assertions, and functional coverage, was verified with Siemens QuestaSim 2025.2.
 
 ## Running the testbench
 
@@ -139,16 +189,26 @@ Class-based randomization, constrained-random verification, scoreboarding, and a
    * `driver.sv`
    * `monitor.sv`
    * `scoreboard.sv`
+   * `coverage.sv`
    * `fifo_sva.sv`
-6. Set the simulator seed, for example: `-sv_seed 67890`.
+6. Set the simulator seed, for example `-sv_seed 67890`.
 7. Click Run.
 
-Expected final output:
-```
+Expected final output for the default configuration:
+
+```text
 DIRECTED FIFO TESTS PASSED
-RANDOM SELF-CHECKING TEST PASSED
+COVERAGE: sampled=126 overall=100.00%
+COVERAGE: requested operations=100.00%
+COVERAGE: accepted operations=100.00%
+COVERAGE: occupancy levels=100.00%
+COVERAGE: boundary states=100.00%
+COVERAGE: occupancy transitions=100.00%
+COVERAGE: state-operation cross=100.00%
+TARGETED AND RANDOM SELF-CHECKING TEST PASSED
 ALL FIFO TESTS PASSED
 ```
+
 ## Next milestone
 
-Add functional coverage for FIFO occupancy, operations, boundary conditions, and important state transitions.
+Automate regression testing across multiple FIFO configurations and random seeds.
