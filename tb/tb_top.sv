@@ -7,16 +7,15 @@
 `include "coverage.sv"
 `include "fifo_sva.sv"
 
-module tb_top;
+module tb_top #(
+    parameter int DATA_WIDTH = 8,
+    parameter int DEPTH = 8
+);
     timeunit 1ns;
     timeprecision 1ps;
 
-    localparam int DATA_WIDTH = 8;
-    localparam int DEPTH = 8;
     localparam int RANDOM_TRANSACTION_COUNT = 100;
-
     localparam int TARGETED_TRANSACTION_COUNT = (2 * DEPTH) + 10;
-
     localparam int TOTAL_TRANSACTION_COUNT =
         TARGETED_TRANSACTION_COUNT +
         RANDOM_TRANSACTION_COUNT;
