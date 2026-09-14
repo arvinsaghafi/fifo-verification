@@ -8,3 +8,7 @@ transcript
 # Temporary editor files
 *~
 *.swp
+
+# Questa simulation output
+qrun.log
+qrun.out/

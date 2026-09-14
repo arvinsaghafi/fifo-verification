@@ -114,7 +114,7 @@ Requested operations are weighted as follows:
 
 Seeds `12345` and `67890` passed. Repeating a seed produces the same randomized transaction sequence, allowing failures to be reproduced.
 
-## SystemVerilog Assertions
+## SystemVerilog assertions
 
 Assertions verify:
 
@@ -157,32 +157,53 @@ The targeted sequence length is: `(2 × DEPTH) + 10`
 
 The targeted sequence ensures that the planned coverage bins are exercised. Constrained-random traffic follows the targeted sequence to provide additional sequence and data variation.
 
-## Verification results
+## Regression verification
 
-| Data width | Depth | Targeted transactions | Random transactions | Total | Functional coverage |
-| ---------: | ----: | --------------------: | ------------------: | ----: | ------------------: |
-|          8 |     8 |                    26 |                 100 |   126 |                100% |
-|         16 |     5 |                    20 |                 100 |   120 |                100% |
-|          8 |     2 |                    14 |                 100 |   114 |                100% |
+The complete verification environment was tested across multiple FIFO configurations and reproducible random seeds.
 
-All listed configurations passed the scoreboard and SystemVerilog Assertions with zero errors.
+| Data width | Depth | Seeds tested     | Transactions per run | Total transactions |         Coverage |
+| ---------: | ----: | ---------------- | -------------------: | -----------------: | ---------------: |
+|          8 |     8 | `12345`, `67890` |                  126 |                252 |     100% per run |
+|         16 |     5 | `12345`, `67890` |                  120 |                240 |     100% per run |
+|          8 |     2 | `12345`, `67890` |                  114 |                228 |     100% per run |
+|  **Total** |       | **6 runs**       |                      |            **720** | **100% per run** |
 
-Reaching 100% functional coverage means that every currently defined coverage bin was hit. It does not account for scenarios that are not included in the coverage model.
+These configurations test:
+
+* The default byte-wide, power-of-two FIFO.
+* A wider FIFO with a non-power-of-two depth.
+* The smallest currently supported depth, where boundary and pointer-wrap conditions occur frequently.
+* Different reproducible constrained-random transaction sequences.
+
+All six regression runs completed with:
+
+* Zero scoreboard errors.
+* Zero assertion failures.
+* All directed tests passing.
+* All targeted and constrained-random tests passing.
+* 100% of the defined functional coverage bins reached.
+
+Reaching 100% functional coverage means that every scenario represented by the current coverage model was exercised. It does not prove the absence of every possible bug or cover scenarios that were not included in the model.
 
 ## Simulator
 
-Directed tests were verified with Aldec Riviera-PRO 2025.04.
+The complete verification environment was verified using Siemens QuestaSim 2025.2 on EDA Playground.
 
-The complete class-based verification environment, including constrained randomization, scoreboarding, assertions, and functional coverage, was verified with Siemens QuestaSim 2025.2.
+The testbench uses advanced SystemVerilog verification features, including:
+
+* Classes and object randomization.
+* Typed mailboxes.
+* Virtual interfaces.
+* SystemVerilog Assertions.
+* Covergroups, coverpoints, bins, transitions, and crosses.
 
 ## Running the testbench
 
 1. Open EDA Playground.
-2. Select SystemVerilog/Verilog and Siemens Questa.
+2. Select SystemVerilog/Verilog and Siemens Questa 2025.2.
 3. Paste `rtl/fifo.sv` into the Design pane.
 4. Paste `tb/tb_top.sv` into the main Testbench pane.
-5. Add these as separate testbench files:
-
+5. Add the following separate testbench files:
    * `fifo_if.sv`
    * `transaction.sv`
    * `generator.sv`
@@ -191,12 +212,10 @@ The complete class-based verification environment, including constrained randomi
    * `scoreboard.sv`
    * `coverage.sv`
    * `fifo_sva.sv`
-6. Set the simulator seed, for example `-sv_seed 67890`.
+6. Set the run options for configuration and seed. For example: `-sv_seed 67890 -gDATA_WIDTH=8 -gDEPTH=8`
 7. Click Run.
-
 Expected final output for the default configuration:
-
-```text
+```
 DIRECTED FIFO TESTS PASSED
 COVERAGE: sampled=126 overall=100.00%
 COVERAGE: requested operations=100.00%
@@ -209,6 +228,8 @@ TARGETED AND RANDOM SELF-CHECKING TEST PASSED
 ALL FIFO TESTS PASSED
 ```
 
-## Next milestone
+## Project status
 
-Automate regression testing across multiple FIFO configurations and random seeds.
+The planned non-UVM FIFO verification environment is complete. It includes parameterized RTL, directed verification, reusable verification components, constrained-random stimulus, an independent scoreboard, assertions, functional coverage, and multi-configuration regression testing.
+
+Possible future extensions include automated regression scripts, continuous integration, and converting the environment to UVM.
